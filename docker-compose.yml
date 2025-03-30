@@ -13,7 +13,23 @@ services:
       - app_db_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-
+  app:
+    depends_on: [app_db]
+    container_name: app
+    image: app
+    env_file:
+      - .env.example
+    ports:
+      - "8000:8000"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      sh -c "
+        /app/scripts/makemigration.sh &&
+        /app/scripts/migrate.sh &&
+        /app/scripts/start.sh
+      "
 volumes:
   app_db_data:
     driver: "local"
