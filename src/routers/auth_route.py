@@ -10,7 +10,7 @@ from src.database import create_user, get_db_connection, get_user_by_email
 from src.models.auth import ProtectedResponse, TokenResponse, User, UserCreate
 from src.services.auth import create_access_token, decode_access_token
 
-auth_router = APIRouter(prefix='/auth')
+auth_router = APIRouter(prefix='/auth', tags=["Auth"])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

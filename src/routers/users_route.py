@@ -5,7 +5,7 @@ from src.database import delete_user_by_id, get_db_connection, get_user_by_id, u
 from src.models.auth import User, UserUpdate
 from src.routers.auth_route import get_current_user
 
-users_router = APIRouter(prefix='/users')
+users_router = APIRouter(prefix='/users', tags=["User Activity"])
 
 
 @users_router.get(

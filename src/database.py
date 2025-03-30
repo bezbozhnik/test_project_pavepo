@@ -6,6 +6,7 @@ from sqlalchemy import (
     Column,
     CursorResult,
     Delete,
+    ForeignKey,
     Identity,
     Insert,
     Integer,
@@ -15,7 +16,7 @@ from sqlalchemy import (
     Update,
 )
 from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base, relationship
 
 from src.config import settings
 from src.constants import DB_NAMING_CONVENTION
@@ -34,13 +35,25 @@ Base = declarative_base(metadata=metadata)
 
 
 class UserDB(Base):
-
     __tablename__ = 'users'
 
-    username = Column(String, nullable=False)
-    email = Column(String, nullable=False)
     id = Column(Integer, Identity(), primary_key=True)
+    email = Column(String, nullable=False)
+    username = Column(String, nullable=False)
     is_admin = Column(Boolean, server_default="false", nullable=False)
+
+    audio_files = relationship("UserAudioFileDB", back_populates="user")
+
+
+class UserAudioFileDB(Base):
+    __tablename__ = 'user_audio_files'
+
+    id = Column(Integer, Identity(), primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    file_name = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+
+    user = relationship("UserDB", back_populates="audio_files")
 
 
 async def create_user(
@@ -112,6 +125,28 @@ async def update_user_data(
             is_admin=result["is_admin"]
             )
     return None
+
+
+async def get_user_audio_files(user_id: int, connection: AsyncConnection) -> list[dict]:
+    query = Select(UserAudioFileDB).where(UserAudioFileDB.user_id == user_id)
+    results = await fetch_all(query, connection)
+    return [
+        {"file_name": row["file_name"], "file_path": row["file_path"]}
+        for row in results
+    ]
+
+
+async def create_audio_file_record(
+    user_id: int,
+    file_name: str,
+    file_path: str,
+    connection: AsyncConnection,
+) -> None:
+    insert_query = (
+        Insert(UserAudioFileDB)
+        .values(user_id=user_id, file_name=file_name, file_path=file_path)
+    )
+    await execute(insert_query, connection, commit_after=True)
 
 
 async def delete_user_by_id(user_id: int, connection: AsyncConnection) -> None:
