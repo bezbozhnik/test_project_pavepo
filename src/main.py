@@ -4,7 +4,9 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from src.config import app_configs, settings
+from src.routers.auth_route import auth_router
 from src.routers.default_route import default_router
+from src.routers.users_route import users_router
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -20,3 +22,5 @@ app.add_middleware(
 )
 
 app.include_router(default_router)
+app.include_router(auth_router)
+app.include_router(users_router)

@@ -1,11 +1,25 @@
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from sqlalchemy import CursorResult, Insert, MetaData, Select, Update
+from sqlalchemy import (
+    Boolean,
+    Column,
+    CursorResult,
+    Delete,
+    Identity,
+    Insert,
+    Integer,
+    MetaData,
+    Select,
+    String,
+    Update,
+)
 from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
+from sqlalchemy.orm import declarative_base
 
 from src.config import settings
 from src.constants import DB_NAMING_CONVENTION
+from src.models.auth import User, UserCreate
 
 DATABASE_URL = str(settings.DATABASE_ASYNC_URL)
 
@@ -16,6 +30,92 @@ engine = create_async_engine(
     pool_pre_ping=settings.DATABASE_POOL_PRE_PING,
 )
 metadata = MetaData(naming_convention=DB_NAMING_CONVENTION)
+Base = declarative_base(metadata=metadata)
+
+
+class UserDB(Base):
+
+    __tablename__ = 'users'
+
+    email = Column(String, nullable=False)
+    id = Column(Integer, Identity(), primary_key=True)
+    is_admin = Column(Boolean, server_default="false", nullable=False)
+
+
+async def create_user(
+    user_data: UserCreate,
+    connection: AsyncConnection | None = None,
+) -> User:
+
+    if not user_data.username:
+        user_data.username = user_data.email.split("@")[0]
+
+    insert_query = (
+        Insert(UserDB)
+        .values(email=user_data.email)
+        .returning(UserDB.id, UserDB.email)
+    )
+
+    if not connection:
+        async with engine.connect() as new_connection:
+            result = await fetch_one(insert_query, new_connection, commit_after=True)
+            return User(id=result["id"], username=user_data.username, email=result["email"], is_superuser=False)
+    else:
+        result = await fetch_one(insert_query, connection, commit_after=True)
+        return User(id=result["id"], username=user_data.username, email=result["email"], is_superuser=False)
+
+
+async def get_user_by_email(email: str, connection: AsyncConnection) -> dict | None:
+    query = Select(UserDB).where(UserDB.email == email)
+    result = await fetch_one(query, connection)
+    if result:
+        return User(
+            id=result["id"],
+            username=result["username"],
+            email=result["email"],
+            is_superuser=result["is_superuser"]
+            )
+    return None
+
+
+async def get_user_by_id(user_id: int, connection: AsyncConnection) -> User | None:
+    query = Select(UserDB).where(UserDB.id == user_id)
+    result = await fetch_one(query, connection)
+    if result:
+        return User(
+            id=result["id"],
+            username=result["username"],
+            email=result["email"],
+            is_superuser=result["is_superuser"]
+            )
+    return None
+
+
+async def update_user_data(
+    user_id: int,
+    update_data: dict,
+    connection: AsyncConnection,
+) -> User | None:
+    update_query = (
+        Update(UserDB)
+        .where(UserDB.id == user_id)
+        .values(**update_data)
+        .returning(UserDB.id, UserDB.username, UserDB.email, UserDB.is_superuser)
+    )
+    result = await fetch_one(update_query, connection, commit_after=True)
+    if result:
+        return User(
+            id=result["id"],
+            username=result["username"],
+            email=result["email"],
+            is_superuser=result["is_superuser"]
+            )
+    return None
+
+
+async def delete_user_by_id(user_id: int, connection: AsyncConnection) -> None:
+    query = Delete(UserDB).where(UserDB.id == user_id)
+    await execute(query, connection, commit_after=True)
 
 
 async def fetch_one(

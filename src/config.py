@@ -25,6 +25,16 @@ class Config(CustomBaseSettings):
     CORS_ORIGINS_REGEX: str | None = None
     CORS_HEADERS: list[str] = ["*"]
 
+    SECRET_KEY: str = "your-secret-key"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    YANDEX_CLIENT_ID: str = "02eb51b57be24ca8bc87e30f6fb29e5b"
+    YANDEX_CLIENT_SECRET: str = "0af747636dc74e26babb874d3038b767"
+    YANDEX_REDIRECT_URI: str = "http://localhost:8000/auth/callback"
+    YANDEX_AUTH_URL: str = "https://oauth.yandex.ru/authorize"
+    YANDEX_TOKEN_URL: str = "https://oauth.yandex.ru/token"
+
     APP_VERSION: str = "0.1"
 
 
