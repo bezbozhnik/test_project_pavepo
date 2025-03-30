@@ -23,7 +23,7 @@ async def get_user(
     connection: AsyncConnection = Depends(get_db_connection),
 ) -> User:
 
-    if not current_user.is_superuser and current_user.id != user_id:
+    if not current_user.is_admin and current_user.id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to view this user",
@@ -55,7 +55,7 @@ async def update_user(
     connection: AsyncConnection = Depends(get_db_connection),
 ) -> User:
 
-    if not current_user.is_superuser and current_user.id != user_id:
+    if not current_user.is_admin and current_user.id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to update this user",
@@ -85,7 +85,7 @@ async def delete_user(
     connection: AsyncConnection = Depends(get_db_connection),
 ) -> dict:
 
-    if not current_user.is_superuser:
+    if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only superusers can delete users",

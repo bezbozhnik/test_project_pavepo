@@ -15,9 +15,22 @@ auth_router = APIRouter(prefix='/auth')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
-    username = decode_access_token(token)
-    return User(username=username)
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    connection: AsyncConnection = Depends(get_db_connection),
+) -> User:
+    token_data = decode_access_token(token)
+    email = token_data["email"]
+
+    user = await get_user_by_email(email, connection)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user
 
 
 @auth_router.get("/yandex/", response_model=dict)
@@ -43,7 +56,7 @@ async def auth_callback(code: str, connection: AsyncConnection = Depends(get_db_
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Failed to get access token from Yandex"
-                )
+            )
 
         access_token = response.json().get("access_token")
         if not access_token:
@@ -63,7 +76,6 @@ async def auth_callback(code: str, connection: AsyncConnection = Depends(get_db_
         if not user:
             user = await create_user(UserCreate(email=email, username=username), connection=connection)
 
-        # Создание внутреннего JWT токена
         internal_token = create_access_token(
             data={"sub": email}, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         )
@@ -73,7 +85,7 @@ async def auth_callback(code: str, connection: AsyncConnection = Depends(get_db_
 @auth_router.post("/token/refresh/", response_model=TokenResponse)
 async def refresh_token(current_user: User = Depends(get_current_user)) -> TokenResponse:
     new_token = create_access_token(
-        data={"sub": current_user.username, "email": current_user.email},
+        data={"sub": current_user.email},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     return TokenResponse(access_token=new_token, token_type="bearer")

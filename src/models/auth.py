@@ -15,13 +15,13 @@ class User(BaseModel):
     id: int
     username: str
     email: str
-    is_superuser: bool = False
+    is_admin: bool = False
 
 
 class UserUpdate(BaseModel):
     username: str
     email: str | None = None
-    is_superuser: bool = False
+    is_admin: bool | None = None
 
 
 class TokenResponse(BaseModel):

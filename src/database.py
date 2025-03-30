@@ -37,6 +37,7 @@ class UserDB(Base):
 
     __tablename__ = 'users'
 
+    username = Column(String, nullable=False)
     email = Column(String, nullable=False)
     id = Column(Integer, Identity(), primary_key=True)
     is_admin = Column(Boolean, server_default="false", nullable=False)
@@ -52,17 +53,17 @@ async def create_user(
 
     insert_query = (
         Insert(UserDB)
-        .values(email=user_data.email)
+        .values(username=user_data.username, email=user_data.email)
         .returning(UserDB.id, UserDB.email)
     )
 
     if not connection:
         async with engine.connect() as new_connection:
             result = await fetch_one(insert_query, new_connection, commit_after=True)
-            return User(id=result["id"], username=user_data.username, email=result["email"], is_superuser=False)
+            return User(id=result["id"], username=user_data.username, email=result["email"], is_admin=False)
     else:
         result = await fetch_one(insert_query, connection, commit_after=True)
-        return User(id=result["id"], username=user_data.username, email=result["email"], is_superuser=False)
+        return User(id=result["id"], username=user_data.username, email=result["email"], is_admin=False)
 
 
 async def get_user_by_email(email: str, connection: AsyncConnection) -> dict | None:
@@ -73,7 +74,7 @@ async def get_user_by_email(email: str, connection: AsyncConnection) -> dict | N
             id=result["id"],
             username=result["username"],
             email=result["email"],
-            is_superuser=result["is_superuser"]
+            is_admin=result["is_admin"]
             )
     return None
 
@@ -86,7 +87,7 @@ async def get_user_by_id(user_id: int, connection: AsyncConnection) -> User | No
             id=result["id"],
             username=result["username"],
             email=result["email"],
-            is_superuser=result["is_superuser"]
+            is_admin=result["is_admin"]
             )
     return None
 
@@ -100,7 +101,7 @@ async def update_user_data(
         Update(UserDB)
         .where(UserDB.id == user_id)
         .values(**update_data)
-        .returning(UserDB.id, UserDB.username, UserDB.email, UserDB.is_superuser)
+        .returning(UserDB.id, UserDB.username, UserDB.email, UserDB.is_admin)
     )
     result = await fetch_one(update_query, connection, commit_after=True)
     if result:
@@ -108,7 +109,7 @@ async def update_user_data(
             id=result["id"],
             username=result["username"],
             email=result["email"],
-            is_superuser=result["is_superuser"]
+            is_admin=result["is_admin"]
             )
     return None
 
